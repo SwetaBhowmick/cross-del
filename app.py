@@ -3,7 +3,7 @@ import pandas as pd
 
 st.set_page_config(page_title="Column Cleaner Tool", layout="wide")
 
-st.title("🧹 Column A Cleaner (Remove values found in Column B)")
+st.title("🧹 Column A Cleaner (Keep blanks instead of deleting rows)")
 
 # -------------------------------
 # Helper Function (Clean Text)
@@ -28,12 +28,12 @@ if uploaded_file:
     columns = df.columns.tolist()
 
     col_a = st.selectbox("Select Column A (Main Data)", columns)
-    col_b = st.selectbox("Select Column B (Reference - values to remove)", columns)
+    col_b = st.selectbox("Select Column B (Reference)", columns)
 
-    if st.button("🚀 Clean Column A"):
+    if st.button("🚀 Clean Column A (Keep Blanks)"):
 
         # -------------------------------
-        # Clean both columns
+        # Clean columns for matching
         # -------------------------------
         df["A_clean"] = df[col_a].apply(clean_text)
         df["B_clean"] = df[col_b].apply(clean_text)
@@ -44,32 +44,33 @@ if uploaded_file:
         reference_values = set(df["B_clean"].dropna())
 
         # -------------------------------
-        # Mark rows
+        # Replace matches with BLANK
         # -------------------------------
-        df["Action"] = df["A_clean"].apply(
-            lambda x: "DELETE" if x in reference_values else "KEEP"
+        def remove_if_match(original, cleaned):
+            if cleaned in reference_values:
+                return ""   # keep blank
+            return original
+
+        df["Updated_A"] = df.apply(
+            lambda row: remove_if_match(row[col_a], row["A_clean"]),
+            axis=1
         )
 
-        # -------------------------------
-        # Filter cleaned data
-        # -------------------------------
-        cleaned_df = df[df["Action"] == "KEEP"].copy()
+        st.success("✅ Cleaning Completed (Blanks kept)!")
 
-        st.success("✅ Cleaning Completed!")
-
-        st.subheader("Cleaned Data (Column A without matches)")
-        st.dataframe(cleaned_df)
+        st.subheader("Updated Data")
+        st.dataframe(df)
 
         # -------------------------------
         # Download
         # -------------------------------
-        output_file = "cleaned_output.xlsx"
-        cleaned_df.to_excel(output_file, index=False)
+        output_file = "cleaned_with_blanks.xlsx"
+        df.to_excel(output_file, index=False)
 
         with open(output_file, "rb") as f:
             st.download_button(
-                label="📥 Download Cleaned Excel",
+                label="📥 Download Excel",
                 data=f,
-                file_name="cleaned_output.xlsx",
+                file_name="cleaned_with_blanks.xlsx",
                 mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
             )
